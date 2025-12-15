@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Memory Helper – Face Registration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    
+    <style>
+        /* --- Root Variables (High Contrast for Visibility) --- */
+        :root {
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --muted: #6b7280;
+            --text: #0b1220; /* Dark text for light theme */
+            --accent-a: #60a5fa;
+            --accent-b: #7c3aed;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+        }
+
+        /* --- Dark Theme Overrides --- */
+        body.dark {
+            --bg: #071024;
+            --card: #0f1724;
+            --muted: #9aa4b2;
+            --text: #edf2f8; /* Light text for dark theme */
+            --accent-a: #60a5fa;
+            --accent-b: #7c3aed;
+            --success-color: #4CAF50;
+            --danger-color: #ff6347;
+        }
+
+        /* --- General Body & Container Styling --- */
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+            padding: 20px;
+            transition: background 0.25s, color 0.25s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 700px;
+        }
+
+        .card-container {
+            max-width: 600px;
+            margin-top: 20px;
+            padding: 30px;
+            background-color: var(--card);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            transition: background 0.25s, box-shadow 0.25s;
+        }
+
+        /* ------------------------------------------- */
+        /* --- CRITICAL FIX: INPUT TEXT VISIBILITY --- */
+        /* ------------------------------------------- */
+        .form-control, .form-select { /* Added .form-select for the dropdown */
+            border-radius: 8px;
+            background-color: var(--card); 
+            border: 1px solid var(--muted);
+            color: var(--text); 
+            padding: 10px 12px;
+            transition: background-color 0.25s, color 0.25s, border-color 0.25s; 
+        }
+
+        /* HIGH-PRIORITY FIX for Dark Mode Text Visibility */
+        body.dark .form-control, 
+        body.dark .form-select {
+            color: var(--text) !important; 
+        }
+        
+        /* Fix for Webkit/Chrome Autofill Visibility Bug */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active  {
+            -webkit-box-shadow: 0 0 0 30px var(--card) inset !important; 
+            -webkit-text-fill-color: var(--text) !important;
+        }
+        /* ------------------------------------------- */
+
+        /* --- Header/Controls Bar Styling (Unchanged) --- */
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            background: var(--card);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .header-controls .controls-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* --- Other Styles (Unchanged) --- */
+        .btn-ghost {
+            padding: 8px 12px; border-radius: 999px; border: 1px solid var(--muted);
+            cursor: pointer; background: transparent; color: var(--text);
+            font-size: 0.9rem; transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .btn-ghost:hover { background: rgba(var(--text), 0.1); }
+        h2 {
+            font-weight: 600; color: var(--accent-b); margin-bottom: 25px;
+            border-bottom: 2px solid var(--accent-a); padding-bottom: 10px; display: inline-block;
+        }
+        .form-label { font-weight: 500; margin-top: 10px; color: var(--text); }
+        .form-control:focus, .form-select:focus {
+            background-color: var(--card); border-color: var(--accent-a);
+            box-shadow: 0 0 0 0.25rem rgba(96, 165, 250, 0.25);
+        }
+        #preview {
+            display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;
+            justify-content: center; margin-bottom: 20px;
+        }
+        .preview-box { position: relative; display: inline-block; }
+        .preview-box img {
+            width: 100px; height: 100px; border-radius: 8px; object-fit: cover;
+            border: 2px solid var(--muted);
+        }
+        .remove-btn {
+            position: absolute; top: -8px; right: -8px; background: var(--danger-color); color: white;
+            font-size: 14px; border-radius: 50%; width: 22px; height: 22px;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; font-weight: bold;
+        }
+
+        /* --- Big UI / Small Text Logic (Unchanged) --- */
+        body.big-ui { font-size: 1.15rem; }
+        body.big-ui .form-control, body.big-ui .form-select, body.big-ui .btn, body.big-ui .btn-ghost {
+            padding: 12px 18px; font-size: 1.05rem;
+        }
+        body.big-ui h2 { font-size: 1.8rem; }
+        body.big-ui .header-controls { padding: 15px 20px; }
+        
+        /* --- Action Buttons (Unchanged) --- */
+        .btn-success, .btn-danger {
+            font-weight: 600; border-radius: 25px;
+        }
+
+        /* --- Camera Icon (Unchanged) --- */
+        #cameraIcon {
+            position: absolute; top: 25px; right: 30px; font-size: 30px;
+            cursor: pointer; color: var(--accent-a); transition: transform 0.2s;
+        }
+        #cameraIcon:hover { transform: scale(1.1); }
+
+        /* --- Status Alert (Unchanged) --- */
+        #statusAlert {
+            display: none; margin-top: 20px; border-radius: 8px; font-weight: 600;
+        }
+    </style>
+</head>
+
+<body class="dark"> <div class="app-container">
+
+    <div class="header-controls">
+        <div class="controls-group">
+            <button id="themeToggle" class="btn-ghost">🌙 Dark</button>
+            <button id="bigUiToggle" class="btn-ghost">🔍 Big Text</button>
+        </div>
+        <button id="clearAllBtn" class="btn-ghost" title="Clear All Saved Local Face Data">
+            <span style="font-size: 1.2rem; margin-right: 5px;">🗑</span> Clear All
+        </button>
+    </div>
+
+    <div class="card-container">
+
+        <span id="cameraIcon" title="Go to Live Recognition">🎥</span>
+
+        <center>
+            <h2>Add New Face & Details</h2>
+        </center>
+
+        <form id="bookform" enctype="multipart/form-data">
+
+            <label class="form-label"><b>Upload Images (Multiple Allowed):</b></label>
+            <input type="file" class="form-control" id="imageInput" multiple accept="image/*">
+            <input type="file" name="images[]" id="finalFiles" multiple hidden>
+
+            <div id="preview"></div>
+
+            <label class="form-label"><b>Name:</b></label>
+            <input type="text" class="form-control" name="name" id="name" required><br>
+
+            <label class="form-label"><b>Relation:</b></label>
+            <select class="form-select" name="relation" id="relation" required>
+                <option value="" disabled selected>Select a Relation</option>
+                <option value="Family: Spouse">Family: Spouse</option>
+                <option value="Family: Son">Family: Son</option>
+                <option value="Family: Daughter">Family: Daughter</option>
+                <option value="Family: Grandson">Family: Grandson</option>
+                <option value="Family: Granddaughter">Family: Granddaughter</option>
+                <option value="Family: Other">Family: Other (Specify in Nickname)</option>
+                <option value="Close Friend">Close Friend</option>
+                <option value="Neighbour">Neighbour</option>
+                <option value="Caregiver / Nurse">Caregiver / Nurse</option>
+                <option value="Doctor">Doctor</option>
+                <option value="Service Worker">Service Worker (e.g., Cleaner, Delivery)</option>
+                <option value="Colleague / Coworker">Colleague / Coworker</option>
+                <option value="Acquaintance">Acquaintance</option>
+                <option value="Other">Other</option>
+            </select><br>
+            
+            <label class="form-label"><b>Age:</b></label>
+            <input type="number" class="form-control" name="age" id="age" required><br>
+
+            <label class="form-label"><b>Gender:</b></label>
+            <select class="form-select" name="gender" id="gender" required>
+                <option value="" disabled selected>Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Non-binary">Non-binary</option>
+                <option value="Other">Other</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+            </select><br>
+            <label class="form-label"><b>Nickname:</b></label>
+            <input type="text" class="form-control" name="nickname" id="nickname" required><br>
+        
+            <div class="d-flex justify-content-center gap-3 mt-4">
+                <button type="submit" class="btn btn-success">Upload & Save</button>
+                <button type="button" class="btn btn-danger" id="clearBtn">Clear Form</button>
+            </div>
+            
+            <div id="statusAlert" class="alert" role="alert"></div>
+
+        </form>
+    </div>
+</div>
+
+
+<script>
+let selectedFiles = [];
+const imageInput = document.getElementById("imageInput");
+const clearBtn = document.getElementById("clearBtn");
+const bookform = document.getElementById("bookform");
+const statusAlert = document.getElementById("statusAlert");
+const themeToggle = document.getElementById('themeToggle');
+const bigUiToggle = document.getElementById('bigUiToggle');
+const clearAllBtn = document.getElementById('clearAllBtn');
+
+// --- THEME & UI CONTROLS LOGIC ---
+
+function applyTheme(theme) { 
+    if(theme === 'dark') document.body.classList.add('dark'); 
+    else document.body.classList.remove('dark'); 
+    themeToggle.innerHTML = theme === 'dark' ? '🌙 Dark' : '☀️ Light'; 
+}
+
+function applyBigUi(enabled) { 
+    if(enabled) document.body.classList.add('big-ui'); 
+    else document.body.classList.remove('big-ui'); 
+    bigUiToggle.innerHTML = enabled ? '🔎 Normal Text' : '🔍 Big Text'; 
+}
+
+themeToggle.onclick = () => { 
+    const isDark = document.body.classList.contains('dark'); 
+    const next = isDark ? 'light' : 'dark'; 
+    applyTheme(next); 
+    localStorage.setItem('mh_theme', next); 
+};
+
+bigUiToggle.onclick = () => { 
+    const enabled = !document.body.classList.contains('big-ui'); 
+    applyBigUi(enabled); 
+    localStorage.setItem('mh_bigui', enabled ? '1' : '0'); 
+};
+
+// --- CLEAR ALL SAVED DATA (Dustbin Option) ---
+clearAllBtn.onclick = () => {
+    if(confirm('Are you sure you want to clear ALL SAVED FACE DATA (Local Storage)? This action cannot be undone. This clears data used by the recognition page.')) {
+        localStorage.removeItem('mh_known_faces_v2_db');
+        localStorage.removeItem('mh_recognition_log_v2'); 
+        showAlert('All local face data and logs cleared successfully.', 'info');
+    }
+};
+
+// --- ALERT & FORM MANAGEMENT ---
+
+function showAlert(message, type) {
+    statusAlert.textContent = message;
+    statusAlert.className = `alert mt-3 alert-${type}`; 
+    statusAlert.style.display = 'block';
+    setTimeout(() => {
+        statusAlert.style.display = 'none';
+    }, 4000);
+}
+
+// Image Handling Logic 
+imageInput.addEventListener("change", function () {
+    selectedFiles.push(...this.files);
+    this.value = "";
+    updatePreview();
+});
+
+function updatePreview() {
+    const preview = document.getElementById("preview");
+    preview.innerHTML = "";
+
+    selectedFiles.forEach((file, index) => {
+        let box = document.createElement("div");
+        box.className = "preview-box";
+
+        let img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+
+        let remove = document.createElement("span");
+        remove.className = "remove-btn";
+        remove.innerHTML = "✖";
+
+        remove.onclick = () => {
+            selectedFiles.splice(index, 1);
+            updatePreview();
+        };
+
+        box.appendChild(img);
+        box.appendChild(remove);
+        preview.appendChild(box);
+    });
+}
+
+// Form Clear Logic 
+const uname = document.getElementById("name");
+const urel = document.getElementById("relation"); // Now a select element
+const unick = document.getElementById("nickname");
+const uage = document.getElementById("age");
+const ugen = document.getElementById("gender"); // Now a select element
+
+clearBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    uname.value = "";
+    urel.value = ""; // Clear the select value (resets to default disabled option)
+    unick.value = "";
+    uage.value = "";
+    ugen.value = ""; // Clear the select value (resets to default disabled option)
+    selectedFiles = [];
+    updatePreview();
+    showAlert("Form fields and image selection cleared.", "secondary");
+});
+
+// Form Submission Logic 
+bookform.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (selectedFiles.length === 0) {
+        return showAlert("Please upload at least one image before saving.", "warning");
+    }
+
+    let formData = new FormData();
+    selectedFiles.forEach(file => {
+        formData.append("images[]", file);
+    });
+
+    document.querySelectorAll("#bookform input:not(#imageInput), #bookform select").forEach(input => {
+        if (input.name) {
+            formData.append(input.name, input.value);
+        }
+    });
+
+    try {
+        let response = await fetch("http://127.0.0.1:5000/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        if (response.ok) {
+            let result = await response.json();
+            showAlert("Upload successful! Server message: " + (result.message || "Data saved. Remember to run encode_faces.py."), "success");
+            clearBtn.click();
+        } else {
+            showAlert(`Upload failed! Server responded with status ${response.status}.`, "danger");
+        }
+    } catch (error) {
+        console.error("Fetch error:", error);
+        showAlert("Failed to connect to the server (http://127.0.0.1:5000). Ensure Flask (app.py) server is running.", "danger");
+    }
+});
+
+// Camera Navigation Logic 
+document.getElementById("cameraIcon").onclick = () => {
+    // Navigating to camera.html in the same directory (or root)
+    window.location.href = "../camera.html";
+};
+
+// --- Initialization ---
+window.onload = () => {
+    // Apply saved theme/UI settings on load
+    const savedTheme = localStorage.getItem('mh_theme') || 'dark';
+    applyTheme(savedTheme);
+    const savedBig = localStorage.getItem('mh_bigui') === '1';
+    applyBigUi(savedBig);
+    
+    // Ensure the select boxes are visually cleared on load
+    document.getElementById("relation").value = "";
+    document.getElementById("gender").value = "";
+};
+</script>
+
+</body>
+</html>

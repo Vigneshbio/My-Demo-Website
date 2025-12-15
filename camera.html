@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Memory Helper – Live Recognition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --muted: #6b7280;
+            --text: #0b1220;
+            --accent-a: #60a5fa;
+            --accent-b: #7c3aed;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+        }
+
+        body.dark {
+            --bg: #071024;
+            --card: #0f1724;
+            --muted: #9aa4b2;
+            --text: #edf2f8; /* Light text for visibility */
+            --accent-a: #60a5fa;
+            --accent-b: #7c3aed;
+            --success-color: #4CAF50;
+            --danger-color: #ff6347;
+            --warning-color: #ffeb3b;
+            --info-color: #00bcd4;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+            padding: 20px;
+            transition: background 0.25s, color 0.25s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 450px; 
+            border: 4px solid var(--accent-a); 
+            border-radius: 12px;
+            margin-bottom: 20px;
+            background-color: #000;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text); 
+            background-color: var(--card);
+            border: 1px solid var(--muted);
+            border-radius: 8px;
+            white-space: pre-line;
+            text-align: left;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            font-weight: 600; 
+            color: var(--accent-b); 
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--accent-a); 
+            padding-bottom: 10px; 
+            display: inline-block;
+        }
+
+        .controls-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .btn-theme {
+            font-weight: 600;
+            border-radius: 25px;
+            padding: 10px 20px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+    </style>
+</head>
+
+<body class="dark"> <div class="container">
+    <div class="d-flex justify-content-between align-items-center w-100" style="max-width: 450px; margin-bottom: 20px;">
+        <button id="backBtn" class="btn btn-sm btn-info btn-theme">← Go Back</button>
+        <button id="themeToggle" class="btn btn-sm btn-light" style="border-radius: 999px;">🌙 Dark</button>
+    </div>
+
+    <h2>Live Face Recognition</h2>
+
+    <video id="video" autoplay muted></video>
+
+    <div class="controls-bar">
+        <button id="startStopBtn" class="btn btn-success btn-theme">▶ Start Recognition</button>
+    </div>
+
+    <div id="result">Waiting for detection...</div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+</div>
+
+<script>
+    const video = document.getElementById("video");
+    const resultDiv = document.getElementById("result");
+    const canvas = document.getElementById("canvas");
+    const startStopBtn = document.getElementById("startStopBtn");
+    const backBtn = document.getElementById("backBtn");
+    const themeToggle = document.getElementById('themeToggle');
+
+    let intervalId = null;
+    let isRunning = false;
+
+
+    function applyTheme(theme) {
+        if (theme === 'dark') document.body.classList.add('dark');
+        else document.body.classList.remove('dark');
+        themeToggle.innerHTML = theme === 'dark' ? '🌙 Dark' : '☀️ Light';
+        themeToggle.className = theme === 'dark' ? 'btn btn-sm btn-outline-light' : 'btn btn-sm btn-outline-dark';
+    }
+
+    themeToggle.onclick = () => {
+        const isDark = document.body.classList.contains('dark');
+        const next = isDark ? 'light' : 'dark';
+        applyTheme(next);
+        localStorage.setItem('mh_theme', next);
+    };
+    
+    const savedTheme = localStorage.getItem('mh_theme') || 'dark';
+    applyTheme(savedTheme);
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(err => {
+            resultDiv.innerText = "Error: Could not access camera. Please check permissions.";
+            console.error("Camera access error: ", err);
+        });
+
+    function captureAndPredict() {
+        if (video.readyState < 2) return; 
+
+        let ctx = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+
+        canvas.toBlob(blob => {
+            let file = new File([blob], "frame.jpg");
+            let formData = new FormData();
+            formData.append("image", file);
+
+            fetch("http://127.0.0.1:5000/predict", {
+                method: "POST",
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                resultDiv.innerHTML = `
+                    Name: ${data.name}
+                    Relation: ${data.relation || 'N/A'}
+                    Age: ${data.age || 'N/A'}
+                    Gender: ${data.gender || 'N/A'}
+                    Nickname: ${data.nickname || 'N/A'}
+                `;
+                resultDiv.style.borderColor = data.name === "Unknown" ? 'var(--danger-color)' : 'var(--success-color)';
+            })
+            .catch(err => {
+                if (isRunning) {
+                    resultDiv.innerText = "Error: Internet Connection";
+                    resultDiv.style.borderColor = 'var(--danger-color)';
+                }
+                console.error("Fetch error:", err);
+            });
+        }, 'image/jpeg');
+    }
+
+    function startRecognition() {
+        if (isRunning) return;
+        isRunning = true;
+        startStopBtn.innerText = "☐ Stop Recognition";
+        startStopBtn.className = "btn btn-danger btn-theme";
+        resultDiv.innerText = "Recognition Active...";
+        resultDiv.style.borderColor = 'var(--accent-a)';
+        
+        intervalId = setInterval(captureAndPredict, 1000); 
+    }
+
+    function stopRecognition() {
+        if (!isRunning) return;
+        isRunning = false;
+        clearInterval(intervalId);
+        startStopBtn.innerText = "▶ Start Recognition";
+        startStopBtn.className = "btn btn-success btn-theme";
+        resultDiv.innerText = "Recognition Stopped. Click Start to resume.";
+        resultDiv.style.borderColor = 'var(--muted)';
+    }
+
+    startStopBtn.addEventListener('click', () => {
+        if (isRunning) {
+            stopRecognition();
+        } else {
+            startRecognition();
+        }
+    });
+
+    window.onload = () => {
+        setTimeout(startRecognition, 1000); 
+    };
+
+    backBtn.addEventListener('click', () => {
+        window.location.href = "index.html";
+    });
+
+</script>
+
+</body>
+</html>
